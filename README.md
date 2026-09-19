@@ -6,6 +6,18 @@ Mon Arcade is a high-speed, retro-modern onchain gaming dApp built for the Monad
 
 ---
 
+## 🚀 Quick Links & Project Highlights
+
+| Resource | Link | Details |
+| :--- | :--- | :--- |
+| 🌐 **Live Deployment** | [mon-arcade.onrender.com](https://mon-arcade.onrender.com/) | Live production web dApp deployed on Monad Testnet |
+| 🎥 **Demo Walkthrough Video** | [Watch Demo Video (Google Drive)](https://drive.google.com/file/d/12is0JS__DG1TSuzHeshNSQpKnBMNZGMd/view?usp=sharing) | Full walkthrough of Bluff or Bust, Vault AI Warden, & Bounties |
+| 📱 **Official Promotional Reel** | [Instagram Reel](https://www.instagram.com/reel/DddvZVHTl8W/?stkn=MXcyeDlvZjQ2OXUyeQ==) | High-energy product showcase and teaser video |
+| 💼 **LinkedIn Announcement** | [LinkedIn Post](https://lnkd.in/p/dSH-pHkT) | Hackathon launch update & community release |
+| 📈 **Social Traction** | **1,700+ Impressions** | Organic impressions and community engagement on socials |
+
+---
+
 ## Value Proposition
 
 Traditional onchain games suffer from sluggish tick rates, disjointed user experiences, and high transaction latency. Mon Arcade harnesses Monad's high-throughput, low-latency execution environment to deliver:
