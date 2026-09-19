@@ -1,0 +1,15 @@
+{
+  "name": "mon-arcade-contracts",
+  "version": "1.0.0",
+  "description": "Mon Arcade smart contracts for Monad Testnet",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:testnet": "hardhat run scripts/deploy.cjs --network monadTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.7",
+    "hardhat": "^2.22.18"
+  }
+}

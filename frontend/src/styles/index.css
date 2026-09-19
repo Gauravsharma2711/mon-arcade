@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Backgrounds */
+  --bg: #07070b;
+  --bg-raised: #0b0b12;
+
+  /* Surfaces & Borders */
+  --panel: #11111a;
+  --panel-raised: #171722;
+  --panel-border: #292938;
+
+  /* Typography / Neutral */
+  --text: #f3f3f3;
+  --muted: #9b9ba8;
+  --subtle: #666675;
+
+  /* Accents */
+  --accent: #8cff00;
+  --lime: #8cff00;
+  --cyan: #35e8ff;
+  --pink: #ff3ea5;
+  --warning: #ffd23f;
+  --danger: #ff4d5a;
+}
+
+/* Base Body Styles */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Subtle CRT scanline overlay - purely atmospheric, behind UI, low opacity, no layout overflow */
+.crt-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: linear-gradient(
+    rgba(18, 16, 26, 0) 50%,
+    rgba(0, 0, 0, 0.22) 50%
+  ),
+  linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.012),
+    rgba(0, 255, 0, 0.008),
+    rgba(0, 0, 255, 0.012)
+  );
+  background-size: 100% 3px, 6px 100%;
+  opacity: 0.55;
+}
+
+/* Arcade vignette effect */
+.arcade-vignette {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 14;
+  background: radial-gradient(
+    circle at 50% 50%,
+    transparent 65%,
+    rgba(4, 4, 7, 0.6) 100%
+  );
+}
+
+/* Restrained Retro-Modern Arcade Motion Pass */
+@keyframes arcade-fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes arcade-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes arcade-turn-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(53, 232, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 16px 2px rgba(53, 232, 255, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(53, 232, 255, 0);
+  }
+}
+
+@keyframes arcade-bounty-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(140, 255, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 2px rgba(140, 255, 0, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 12px 0 rgba(140, 255, 0, 0.15);
+  }
+}
+
+.animate-arcade-fade-in {
+  animation: arcade-fade-in-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-arcade-scale-in {
+  animation: arcade-scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-turn-flash {
+  animation: arcade-turn-flash 0.45s ease-out;
+}
+
+.animate-bounty-glow {
+  animation: arcade-bounty-glow 0.6s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-arcade-fade-in,
+  .animate-arcade-scale-in,
+  .animate-turn-flash,
+  .animate-bounty-glow {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .crt-overlay {
+    opacity: 0.1;
+    background: none;
+  }
+  .arcade-vignette {
+    opacity: 0.3;
+  }
+}
+

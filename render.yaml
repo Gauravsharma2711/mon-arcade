@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: mon-arcade
+    runtime: python
+    buildCommand: npm --prefix frontend install && npm --prefix frontend run build && pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: USE_MOCK_BLOCKCHAIN
+        value: "false"
+      - key: USE_MOCK_AI
+        value: "false"
+      - key: MONAD_RPC_URL
+        value: https://testnet-rpc.monad.xyz
+      - key: MONAD_CHAIN_ID
+        value: "10143"
+      - key: VAULT_CONTRACT_ADDRESS
+        value: 0x5742Ec7A82D85248C76C266CCA9f61791aA133f6
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mon-arcade-db
+          property: connectionString
+      - key: PRIVATE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+databases:
+  - name: mon-arcade-db
+    databaseName: mon_arcade
+    user: mon_arcade_user
+    plan: free
