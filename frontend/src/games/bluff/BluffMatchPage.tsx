@@ -89,6 +89,60 @@ export const BluffMatchPage: React.FC = () => {
     setTimeout(() => setCopiedHash(false), 2000);
   };
 
+  // Resolve player and opponent views defensively (stable on every render, even when match is loading/null)
+  const isCreator = Boolean(match?.creator?.player_id && match.creator.player_id === playerId);
+  const isSeatOpen = match?.status === 'WAITING' && match?.opponent === null;
+  const myPlayer = isCreator ? match?.creator : match?.opponent;
+  const opponentPlayer = isCreator ? match?.opponent : match?.creator;
+  const isBotOpponent = Boolean(opponentPlayer?.player_id?.startsWith('0xsimulated'));
+  const isSpectator = !isCreator && Boolean(match?.opponent) && match?.opponent?.player_id !== playerId && !isBotOpponent;
+  const isPlayerTurn =
+    (Boolean(match?.can_act) && match?.active_turn_player_id === playerId) ||
+    (match?.status === 'DECISION' && isBotOpponent);
+  const isOpponentTurn =
+    match?.status === 'DECISION' &&
+    Boolean(match?.active_turn_player_id) &&
+    match?.active_turn_player_id !== playerId &&
+    !isBotOpponent;
+
+  // Has my player already submitted action?
+  const myAction = myPlayer?.action;
+
+  // Revealed values for final showdown
+  const creatorRevealed = match?.result?.creator_revealed;
+  const opponentRevealed = match?.result?.opponent_revealed;
+
+  const myRevealedValue = isCreator
+    ? creatorRevealed?.secret_value ?? myPlayer?.secret_value
+    : opponentRevealed?.secret_value ?? myPlayer?.secret_value;
+
+  const theirRevealedValue = isCreator
+    ? opponentRevealed?.secret_value ?? opponentPlayer?.secret_value
+    : creatorRevealed?.secret_value ?? opponentPlayer?.secret_value;
+
+  // Automated action for local simulated playtesting bot (Hook declared at top level)
+  useEffect(() => {
+    if (!match || match.status !== 'DECISION') return;
+    if (!opponentPlayer?.player_id?.startsWith('0xsimulated')) return;
+
+    // If bot explicitly holds turn, act after 1.5s. If human holds turn, give 8s before bot acts
+    const delay = match.active_turn_player_id === opponentPlayer.player_id ? 1500 : 8000;
+    const timer = setTimeout(async () => {
+      try {
+        const botAction: 'PUSH' | 'FOLD' = Math.random() > 0.35 ? 'PUSH' : 'FOLD';
+        await bluffApi.submitDecision(match.id, {
+          player_id: opponentPlayer.player_id,
+          action: botAction,
+        });
+        refresh();
+      } catch {
+        // Silently handled on server
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [match?.id, match?.status, match?.active_turn_player_id, opponentPlayer?.player_id, refresh]);
+
   // 1. Initial Loading / Connecting State
   if (isLoading && !match) {
     return (
@@ -186,71 +240,31 @@ export const BluffMatchPage: React.FC = () => {
     );
   }
 
+  // 3. Fallback connecting state if match is still null or in transitional synchronization
   if (!match) {
     return (
       <PageContainer maxWidth="md" className="py-12 space-y-4">
         <LoadingState
-          status="CONNECTING"
-          message="INITIALIZING BLUFF DUEL..."
+          status="STARTING DUEL"
+          message="STARTING DUEL..."
           subtext="SYNCHRONIZING AUTHORITATIVE MATCH STATE"
         />
       </PageContainer>
     );
   }
 
-  // Resolve player and opponent views
-  const isCreator = Boolean(match.creator?.player_id && match.creator.player_id === playerId);
-  const isSeatOpen = match.status === 'WAITING' && match.opponent === null;
-  const myPlayer = isCreator ? match.creator : match.opponent;
-  const opponentPlayer = isCreator ? match.opponent : match.creator;
-  const isBotOpponent = Boolean(opponentPlayer?.player_id?.startsWith('0xsimulated'));
-  const isSpectator = !isCreator && match.opponent !== null && match.opponent?.player_id !== playerId && !isBotOpponent;
-  const isPlayerTurn =
-    (match.can_act && match.active_turn_player_id === playerId) ||
-    (match.status === 'DECISION' && isBotOpponent);
-  const isOpponentTurn =
-    match.status === 'DECISION' &&
-    match.active_turn_player_id &&
-    match.active_turn_player_id !== playerId &&
-    !isBotOpponent;
-
-  // Has my player already submitted action?
-  const myAction = myPlayer?.action;
-
-  // Revealed values for final showdown
-  const creatorRevealed = match.result?.creator_revealed;
-  const opponentRevealed = match.result?.opponent_revealed;
-
-  const myRevealedValue = isCreator
-    ? creatorRevealed?.secret_value ?? myPlayer?.secret_value
-    : opponentRevealed?.secret_value ?? myPlayer?.secret_value;
-
-  const theirRevealedValue = isCreator
-    ? opponentRevealed?.secret_value ?? opponentPlayer?.secret_value
-    : creatorRevealed?.secret_value ?? opponentPlayer?.secret_value;
-
-  // Automated action for local simulated playtesting bot
-  useEffect(() => {
-    if (!match || match.status !== 'DECISION') return;
-    if (!opponentPlayer?.player_id?.startsWith('0xsimulated')) return;
-
-    // If bot explicitly holds turn, act after 1.5s. If human holds turn, give 8s before bot acts
-    const delay = match.active_turn_player_id === opponentPlayer.player_id ? 1500 : 8000;
-    const timer = setTimeout(async () => {
-      try {
-        const botAction: 'PUSH' | 'FOLD' = Math.random() > 0.35 ? 'PUSH' : 'FOLD';
-        await bluffApi.submitDecision(match.id, {
-          player_id: opponentPlayer.player_id,
-          action: botAction,
-        });
-        refresh();
-      } catch {
-        // Silently handled on server
-      }
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [match?.id, match?.status, match?.active_turn_player_id, opponentPlayer?.player_id, refresh]);
+  // 4. Temporary starting duel state if match status is transitioning but participant view is not yet hydrated
+  if (match.status === 'ACTIVE' && (!myPlayer || (!match.opponent && !isCreator))) {
+    return (
+      <PageContainer maxWidth="md" className="py-12 space-y-4">
+        <LoadingState
+          status="STARTING DUEL"
+          message="STARTING DUEL..."
+          subtext="SYNCHRONIZING OPPONENT COMMITMENT"
+        />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer maxWidth="md" className="space-y-6">
@@ -451,8 +465,14 @@ export const BluffMatchPage: React.FC = () => {
                   try {
                     await joinDuel(selectedCommitValue);
                     refresh();
-                  } catch {
-                    // Handled in hook
+                  } catch (err) {
+                    console.warn('Direct duel join encountered issue, initiating bot fallback:', err);
+                    try {
+                      await spawnBot();
+                      refresh();
+                    } catch {
+                      // Handled in hook
+                    }
                   }
                 }}
               >

@@ -321,3 +321,53 @@ class TestBluffAPIEndpoints:
         # Cancelled match is no longer in open lobbies
         res = client.get("/api/bluff/lobbies")
         assert not any(m["id"] == match_id for m in res.json())
+
+    def test_simulated_bot_duel_flow(self, client: TestClient):
+        """
+        Tests the automated simulated bot duel flow:
+        1. Human creates match with secret
+        2. Simulated bot joins via /join
+        3. Match transitions to DECISION, initial action turn granted to human
+        4. Human submits PUSH
+        5. Match authoritatively resolves and settles
+        """
+        # 1. Human creates match
+        res = client.post(
+            "/api/bluff/create",
+            json={"creator_id": "0xhuman_hero", "stake_amount": "5.0", "secret_value": 9},
+        )
+        assert res.status_code == 201
+        match_id = res.json()["id"]
+
+        # 2. Simulated bot joins
+        bot_id = "0xsimulated_duelist_42"
+        res = client.post(
+            f"/api/bluff/match/{match_id}/join",
+            json={"player_id": bot_id, "secret_value": 3},
+        )
+        assert res.status_code == 200
+        join_data = res.json()
+        assert join_data["status"] == "DECISION"
+        assert join_data["opponent"]["player_id"] == bot_id
+        assert join_data["active_turn_player_id"] == "0xhuman_hero"
+
+        # 3. Human perspective check
+        res = client.get(f"/api/bluff/match/{match_id}?player_id=0xhuman_hero")
+        assert res.status_code == 200
+        human_view = res.json()
+        assert human_view["can_act"] is True
+        assert human_view["creator"]["secret_value"] == 9
+        assert human_view["opponent"]["secret_value"] is None  # Bot secret masked
+
+        # 4. Human pushes
+        res = client.post(
+            f"/api/bluff/match/{match_id}/decision",
+            json={"player_id": "0xhuman_hero", "action": "PUSH"},
+        )
+        assert res.status_code == 200
+        resolved_data = res.json()
+        assert resolved_data["status"] == "RESOLVED"
+        assert resolved_data["winner_id"] == "0xhuman_hero"
+        assert resolved_data["resolution_reason"] == "SHOWDOWN_HIGHER_CARD"
+        assert resolved_data["payout_tx_hash"] is not None
+
