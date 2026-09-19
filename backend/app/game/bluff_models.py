@@ -238,10 +238,18 @@ class BluffMatch(BaseModel):
             )
 
         # Action permissions
+        is_vs_bot = bool(
+            (self.opponent_id and self.opponent_id.startswith("0xsimulated"))
+            or (self.creator_id and self.creator_id.startswith("0xsimulated"))
+        )
+        is_human_participant = bool(
+            viewer_id in (self.creator_id, self.opponent_id)
+            and not (viewer_id and viewer_id.startswith("0xsimulated"))
+        )
         can_act = (
             self.status == BluffMatchStatus.DECISION
             and viewer_id is not None
-            and viewer_id == self.active_turn_player_id
+            and (viewer_id == self.active_turn_player_id or (is_vs_bot and is_human_participant))
             and not self.is_expired()
         )
 

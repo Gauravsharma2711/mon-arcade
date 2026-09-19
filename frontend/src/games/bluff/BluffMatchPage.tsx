@@ -193,13 +193,16 @@ export const BluffMatchPage: React.FC = () => {
   const isSeatOpen = match.status === 'WAITING' && match.opponent === null;
   const myPlayer = isCreator ? match.creator : match.opponent;
   const opponentPlayer = isCreator ? match.opponent : match.creator;
-  const isSpectator = !isCreator && match.opponent !== null && match.opponent?.player_id !== playerId;
-
-  const isPlayerTurn = match.can_act && match.active_turn_player_id === playerId;
+  const isBotOpponent = Boolean(opponentPlayer?.player_id?.startsWith('0xsimulated'));
+  const isSpectator = !isCreator && match.opponent !== null && match.opponent?.player_id !== playerId && !isBotOpponent;
+  const isPlayerTurn =
+    (match.can_act && match.active_turn_player_id === playerId) ||
+    (match.status === 'DECISION' && isBotOpponent);
   const isOpponentTurn =
     match.status === 'DECISION' &&
     match.active_turn_player_id &&
-    match.active_turn_player_id !== playerId;
+    match.active_turn_player_id !== playerId &&
+    !isBotOpponent;
 
   // Has my player already submitted action?
   const myAction = myPlayer?.action;
@@ -219,8 +222,10 @@ export const BluffMatchPage: React.FC = () => {
   // Automated action for local simulated playtesting bot
   useEffect(() => {
     if (!match || match.status !== 'DECISION') return;
-    if (!isOpponentTurn || !opponentPlayer?.player_id?.startsWith('0xsimulated')) return;
+    if (!opponentPlayer?.player_id?.startsWith('0xsimulated')) return;
 
+    // If bot explicitly holds turn, act after 1.5s. If human holds turn, give 8s before bot acts
+    const delay = match.active_turn_player_id === opponentPlayer.player_id ? 1500 : 8000;
     const timer = setTimeout(async () => {
       try {
         const botAction: 'PUSH' | 'FOLD' = Math.random() > 0.35 ? 'PUSH' : 'FOLD';
@@ -232,10 +237,10 @@ export const BluffMatchPage: React.FC = () => {
       } catch {
         // Silently handled on server
       }
-    }, 1500);
+    }, delay);
 
     return () => clearTimeout(timer);
-  }, [match?.id, match?.status, isOpponentTurn, opponentPlayer?.player_id, refresh]);
+  }, [match?.id, match?.status, match?.active_turn_player_id, opponentPlayer?.player_id, refresh]);
 
   return (
     <PageContainer maxWidth="md" className="space-y-6">
@@ -444,6 +449,26 @@ export const BluffMatchPage: React.FC = () => {
                 <Swords className="w-4 h-4 mr-2" />
                 ACCEPT CHALLENGE & JOIN ({match.stake_amount} MON)
               </ArcadeButton>
+
+              <div className="pt-2 border-t border-arcade-border flex items-center justify-between gap-3">
+                <span className="text-[11px] font-mono text-arcade-subtle">PREFER TO TEST SOLO?</span>
+                <ArcadeButton
+                  variant="cyan"
+                  size="sm"
+                  isLoading={isSubmitting}
+                  onClick={async () => {
+                    try {
+                      await spawnBot();
+                      refresh();
+                    } catch {
+                      // Handled in hook
+                    }
+                  }}
+                >
+                  <Bot className="w-3.5 h-3.5 mr-1.5" />
+                  PLAY WITH LOCAL BOT
+                </ArcadeButton>
+              </div>
             </div>
           </div>
         </Panel>

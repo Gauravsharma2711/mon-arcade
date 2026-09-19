@@ -423,8 +423,16 @@ class BluffGameEngine:
                 f"Player {player_id} is not an authorized participant in match {match_id}."
             )
 
-        # Validate turn authority
-        if player_id != match.active_turn_player_id:
+        # Validate turn authority (allow human player to act if opponent is a simulated bot)
+        is_vs_bot = bool(
+            (match.opponent_id and match.opponent_id.startswith("0xsimulated"))
+            or (match.creator_id and match.creator_id.startswith("0xsimulated"))
+        )
+        is_human_participant = bool(
+            player_id in (match.creator_id, match.opponent_id)
+            and not player_id.startswith("0xsimulated")
+        )
+        if player_id != match.active_turn_player_id and not (is_vs_bot and is_human_participant):
             raise UnauthorizedPlayerError(
                 f"It is not player {player_id}'s turn to act (active: {match.active_turn_player_id})."
             )
@@ -558,7 +566,13 @@ class BluffGameEngine:
 
         if creator_ready and opponent_ready:
             match.status = BluffMatchStatus.DECISION
-            match.active_turn_player_id = match.opponent_id  # Challenger holds initial action turn
+            # When playing against a simulated bot, assign the initial decision turn to the human player
+            if match.opponent_id and match.opponent_id.startswith("0xsimulated"):
+                match.active_turn_player_id = match.creator_id
+            elif match.creator_id and match.creator_id.startswith("0xsimulated"):
+                match.active_turn_player_id = match.opponent_id
+            else:
+                match.active_turn_player_id = match.opponent_id  # Challenger holds initial action turn
             now = datetime.now(timezone.utc)
             match.turn_deadline = now + timedelta(seconds=match.turn_seconds_allowed)
         elif has_opponent:
