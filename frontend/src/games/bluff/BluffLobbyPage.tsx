@@ -119,7 +119,7 @@ export const BluffLobbyPage: React.FC = () => {
             <User className="w-3.5 h-3.5 text-arcade-pink" />
             <span className="text-arcade-subtle">PLAYER:</span>
             <span className="text-arcade-text font-bold tracking-wider">
-              {playerId.slice(0, 6)}...{playerId.slice(-4)}
+              {playerId ? `${playerId.slice(0, 6)}...${playerId.slice(-4)}` : '0xPLAYER'}
             </span>
           </div>
 
@@ -363,7 +363,7 @@ export const BluffLobbyPage: React.FC = () => {
               OPPONENT ENTERED DUEL!
             </div>
             <p className="font-mono text-xs text-arcade-text mt-1">
-              Opponent {createdMatch.opponent?.player_id.slice(0, 8)}... locked their commitment. Duel is READY.
+              Opponent {createdMatch.opponent?.player_id ? `${createdMatch.opponent.player_id.slice(0, 8)}...` : 'Challenger'} locked their commitment. Duel is READY.
             </p>
           </div>
           <ArcadeButton
@@ -442,7 +442,7 @@ export const BluffLobbyPage: React.FC = () => {
                         )}
                       </div>
                       <div className="text-[11px] font-mono text-arcade-subtle mt-0.5">
-                        HOST: {lobby.creator.player_id.slice(0, 8)}... &bull; STAKE:{' '}
+                        HOST: {lobby.creator?.player_id ? `${lobby.creator.player_id.slice(0, 8)}...` : 'HOST'} &bull; STAKE:{' '}
                         <strong className="text-arcade-text">{lobby.stake_amount} MON</strong> &bull; POT:{' '}
                         <strong className="text-arcade-pink">{lobby.pot_amount} MON</strong>
                       </div>

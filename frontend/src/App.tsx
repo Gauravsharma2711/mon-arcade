@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ArcadeShell } from './components/ArcadeShell';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingState } from './components/LoadingState';
 import { PageContainer } from './components/PageContainer';
 import { HomePage } from './pages/HomePage';
@@ -58,10 +59,11 @@ const RouteSuspenseFallback: React.FC = () => (
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<ArcadeShell />}>
-          {/* Home — Eagerly loaded for instantaneous landing experience */}
-          <Route path="/" element={<HomePage />} />
+      <ErrorBoundary>
+        <Routes>
+          <Route element={<ArcadeShell />}>
+            {/* Home — Eagerly loaded for instantaneous landing experience */}
+            <Route path="/" element={<HomePage />} />
 
           {/* Bluff or Bust — Lazy Loaded */}
           <Route
@@ -188,6 +190,7 @@ export const App: React.FC = () => {
           />
         </Route>
       </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 };

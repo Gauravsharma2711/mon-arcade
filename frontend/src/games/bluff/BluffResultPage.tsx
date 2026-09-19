@@ -211,7 +211,7 @@ export const BluffResultPage: React.FC = () => {
               ? 'DRAW — POT RETURNED'
               : isLoser
               ? 'DEFEAT — DUEL LOST'
-              : `CONCLUDED: WINNER ${result.winner_id ? result.winner_id.slice(0, 8) : 'NONE'}`}
+              : `CONCLUDED: WINNER ${result.winner_id ? `${result.winner_id.slice(0, 8)}...` : 'NONE'}`}
           </h1>
           <p className="font-mono text-xs text-arcade-muted">
             {formatResolutionReason(result.resolution_reason)}
@@ -258,7 +258,7 @@ export const BluffResultPage: React.FC = () => {
             <div className="p-3 rounded bg-arcade-bg border border-arcade-border flex items-center justify-between">
               <div>
                 <div className="text-[10px] text-arcade-subtle uppercase">MATCH ID</div>
-                <div className="text-arcade-text font-bold mt-0.5">#{result.match_id.slice(0, 8)}</div>
+                <div className="text-arcade-text font-bold mt-0.5">#{result.match_id ? result.match_id.slice(0, 8) : ''}</div>
               </div>
               <button
                 onClick={handleCopyId}
@@ -307,7 +307,7 @@ export const BluffResultPage: React.FC = () => {
             <div className="p-4 rounded-lg bg-arcade-bg border-2 border-arcade-pink/50 shadow-[0_0_15px_rgba(255,62,165,0.15)] flex flex-col items-center justify-between space-y-3">
               <div className="w-full flex justify-between items-center text-[10px] font-mono">
                 <span className="text-arcade-pink font-bold">
-                  {myRevealed?.player_id.slice(0, 10)} (YOU)
+                  {myRevealed?.player_id ? `${myRevealed.player_id.slice(0, 10)} (YOU)` : 'YOU'}
                 </span>
                 <span className="text-arcade-subtle uppercase">
                   {myRevealed?.action ? `ACTION: ${myRevealed.action}` : 'NO ACTION'}
@@ -331,10 +331,10 @@ export const BluffResultPage: React.FC = () => {
                   </div>
                 )}
                 <div className="text-arcade-subtle truncate max-w-full">
-                  HASH: <span className="text-arcade-text">{myRevealed?.commitment_hash.slice(0, 14)}...</span>
+                  HASH: <span className="text-arcade-text">{myRevealed?.commitment_hash ? `${myRevealed.commitment_hash.slice(0, 14)}...` : '—'}</span>
                 </div>
                 <div className="text-arcade-subtle truncate max-w-full">
-                  SALT: <span className="text-arcade-text">{myRevealed?.salt.slice(0, 14)}...</span>
+                  SALT: <span className="text-arcade-text">{myRevealed?.salt ? `${myRevealed.salt.slice(0, 14)}...` : '—'}</span>
                 </div>
               </div>
             </div>
@@ -343,7 +343,7 @@ export const BluffResultPage: React.FC = () => {
             <div className="p-4 rounded-lg bg-arcade-bg border-2 border-arcade-cyan/50 shadow-[0_0_15px_rgba(0,240,255,0.15)] flex flex-col items-center justify-between space-y-3">
               <div className="w-full flex justify-between items-center text-[10px] font-mono">
                 <span className="text-arcade-cyan font-bold">
-                  {oppRevealed?.player_id.slice(0, 10)} (OPPONENT)
+                  {oppRevealed?.player_id ? `${oppRevealed.player_id.slice(0, 10)} (OPPONENT)` : 'OPPONENT'}
                 </span>
                 <span className="text-arcade-subtle uppercase">
                   {oppRevealed?.action ? `ACTION: ${oppRevealed.action}` : 'NO ACTION'}
@@ -367,10 +367,10 @@ export const BluffResultPage: React.FC = () => {
                   </div>
                 )}
                 <div className="text-arcade-subtle truncate max-w-full">
-                  HASH: <span className="text-arcade-text">{oppRevealed?.commitment_hash.slice(0, 14)}...</span>
+                  HASH: <span className="text-arcade-text">{oppRevealed?.commitment_hash ? `${oppRevealed.commitment_hash.slice(0, 14)}...` : '—'}</span>
                 </div>
                 <div className="text-arcade-subtle truncate max-w-full">
-                  SALT: <span className="text-arcade-text">{oppRevealed?.salt.slice(0, 14)}...</span>
+                  SALT: <span className="text-arcade-text">{oppRevealed?.salt ? `${oppRevealed.salt.slice(0, 14)}...` : '—'}</span>
                 </div>
               </div>
             </div>

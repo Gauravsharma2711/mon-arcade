@@ -186,10 +186,20 @@ export const BluffMatchPage: React.FC = () => {
     );
   }
 
-  if (!match) return null;
+  if (!match) {
+    return (
+      <PageContainer maxWidth="md" className="py-12 space-y-4">
+        <LoadingState
+          status="CONNECTING"
+          message="INITIALIZING BLUFF DUEL..."
+          subtext="SYNCHRONIZING AUTHORITATIVE MATCH STATE"
+        />
+      </PageContainer>
+    );
+  }
 
   // Resolve player and opponent views
-  const isCreator = match.creator.player_id === playerId;
+  const isCreator = Boolean(match.creator?.player_id && match.creator.player_id === playerId);
   const isSeatOpen = match.status === 'WAITING' && match.opponent === null;
   const myPlayer = isCreator ? match.creator : match.opponent;
   const opponentPlayer = isCreator ? match.opponent : match.creator;
@@ -290,7 +300,7 @@ export const BluffMatchPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-display text-xl text-arcade-pink tracking-wider">
-              BLUFF DUEL #{match.id.slice(0, 8)}
+              BLUFF DUEL #{match.id ? match.id.slice(0, 8) : matchId ? matchId.slice(0, 8) : ''}
             </h1>
             <button
               onClick={handleCopyId}
@@ -399,7 +409,7 @@ export const BluffMatchPage: React.FC = () => {
                 YOU HAVE BEEN CHALLENGED TO A 1V1 DUEL!
               </h2>
               <p className="text-xs font-mono text-arcade-muted max-w-md mx-auto">
-                Creator <span className="text-arcade-pink font-bold">{match.creator.player_id.slice(0, 10)}...</span> has staked{' '}
+                Creator <span className="text-arcade-pink font-bold">{match.creator?.player_id ? `${match.creator.player_id.slice(0, 10)}...` : 'Host'}</span> has staked{' '}
                 <span className="text-arcade-pink font-bold">{match.stake_amount} MON</span>. Total pot is{' '}
                 <span className="text-arcade-lime font-bold">{match.pot_amount} MON</span>.
               </p>
@@ -662,7 +672,7 @@ export const BluffMatchPage: React.FC = () => {
 
         {/* 2. OPPONENT STATE */}
         <Panel
-          header={`2. OPPONENT (${opponentPlayer ? opponentPlayer.player_id.slice(0, 10) : 'WAITING'})`}
+          header={`2. OPPONENT (${opponentPlayer?.player_id ? opponentPlayer.player_id.slice(0, 10) : 'WAITING'})`}
           accent="cyan"
           className="relative overflow-hidden"
         >
@@ -694,7 +704,7 @@ export const BluffMatchPage: React.FC = () => {
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>HASH CRYPTOGRAPHICALLY VERIFIED</span>
                   </div>
-                  {opponentPlayer.action && (
+                  {opponentPlayer?.action && (
                     <div className="text-xs font-mono font-bold text-arcade-cyan">
                       OPPONENT ACTION: {opponentPlayer.action}
                     </div>
@@ -724,7 +734,7 @@ export const BluffMatchPage: React.FC = () => {
                   <div className="inline-flex items-center gap-1.5 text-xs font-mono text-arcade-subtle bg-arcade-panel px-2.5 py-1 rounded border border-arcade-border">
                     <Shield className="w-3.5 h-3.5 text-arcade-pink" />
                     <span>
-                      {opponentPlayer.has_committed
+                      {opponentPlayer?.has_committed
                         ? 'SECRET COMMITTED & HIDDEN'
                         : 'AWAITING SECRET COMMITMENT'}
                     </span>
@@ -897,7 +907,7 @@ export const BluffMatchPage: React.FC = () => {
       {/* Spectator Notice */}
       {isSpectator && (
         <div className="p-3 rounded bg-arcade-panel border border-arcade-border text-center text-xs font-mono text-arcade-subtle">
-          YOU ARE SPECTATING DUEL #{match.id.slice(0, 8)}. ALL HIDDEN VALUES REMAIN MASKED UNTIL SHOWDOWN.
+          YOU ARE SPECTATING DUEL #{match.id ? match.id.slice(0, 8) : matchId ? matchId.slice(0, 8) : ''}. ALL HIDDEN VALUES REMAIN MASKED UNTIL SHOWDOWN.
         </div>
       )}
     </PageContainer>
