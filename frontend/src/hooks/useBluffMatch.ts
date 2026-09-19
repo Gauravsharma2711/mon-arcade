@@ -207,6 +207,77 @@ export function useBluffMatch(matchId: string) {
     [matchId, playerId]
   );
 
+  // Join open duel as opponent
+  const joinDuel = useCallback(
+    async (secretValue: number): Promise<BluffMatchClientView> => {
+      if (!matchId) throw new Error('No match ID');
+      try {
+        setIsSubmitting(true);
+        setError(null);
+        const updated = await bluffApi.joinMatch(matchId, {
+          player_id: playerId,
+          secret_value: secretValue,
+        });
+        setMatch(updated);
+        return updated;
+      } catch (err: any) {
+        const parsed = parseError(err);
+        setError(parsed);
+        throw err;
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [matchId, playerId]
+  );
+
+  // Spawn simulated bot opponent for creator
+  const spawnBot = useCallback(
+    async (): Promise<BluffMatchClientView> => {
+      if (!matchId) throw new Error('No match ID');
+      try {
+        setIsSubmitting(true);
+        setError(null);
+        const randomSecret = Math.floor(Math.random() * 10) + 1;
+        const simulatedId = `0xsimulated_duelist_${Math.floor(Math.random() * 1000)}`;
+        const updated = await bluffApi.joinMatch(matchId, {
+          player_id: simulatedId,
+          secret_value: randomSecret,
+        });
+        setMatch(updated);
+        return updated;
+      } catch (err: any) {
+        const parsed = parseError(err);
+        setError(parsed);
+        throw err;
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [matchId]
+  );
+
+  // Cancel match for creator
+  const cancelMatch = useCallback(
+    async (): Promise<BluffMatchClientView> => {
+      if (!matchId) throw new Error('No match ID');
+      try {
+        setIsSubmitting(true);
+        setError(null);
+        const updated = await bluffApi.cancelMatch(matchId, playerId);
+        setMatch(updated);
+        return updated;
+      } catch (err: any) {
+        const parsed = parseError(err);
+        setError(parsed);
+        throw err;
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [matchId, playerId]
+  );
+
   const uiState = deriveUIState(match, isSubmitting, error, isLoading);
 
   return {
@@ -220,6 +291,10 @@ export function useBluffMatch(matchId: string) {
     refresh: fetchState,
     submitDecision,
     commitSecret,
+    joinDuel,
+    spawnBot,
+    cancelMatch,
     clearError: () => setError(null),
   };
 }
+

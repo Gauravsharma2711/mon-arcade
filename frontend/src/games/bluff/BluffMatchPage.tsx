@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { PageContainer } from '../../components/PageContainer';
 import { Panel } from '../../components/Panel';
 import { Hud } from '../../components/Hud';
@@ -24,11 +24,14 @@ import {
   RefreshCw,
   WifiOff,
   X,
+  Bot,
+  Lock,
 } from 'lucide-react';
 
 export const BluffMatchPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const matchId = id || '';
+  const navigate = useNavigate();
 
   const {
     playerId,
@@ -41,12 +44,27 @@ export const BluffMatchPage: React.FC = () => {
     refresh,
     submitDecision,
     commitSecret,
+    joinDuel,
+    spawnBot,
+    cancelMatch,
     clearError,
   } = useBluffMatch(matchId);
 
   const [selectedCommitValue, setSelectedCommitValue] = useState<number>(7);
   const [copiedId, setCopiedId] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const [copiedHash, setCopiedHash] = useState<boolean>(false);
+  const [slowLoadWarning, setSlowLoadWarning] = useState<boolean>(false);
+
+  // Monitor loading latency for cold-start cloud instances (Render spin-up)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading && !match) {
+        setSlowLoadWarning(true);
+      }
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [isLoading, match]);
 
   // Copy Match ID helper
   const handleCopyId = () => {
@@ -54,6 +72,14 @@ export const BluffMatchPage: React.FC = () => {
     navigator.clipboard.writeText(matchId);
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  // Copy Duel Share Link helper
+  const handleCopyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
   // Copy Hash helper
@@ -66,12 +92,28 @@ export const BluffMatchPage: React.FC = () => {
   // 1. Initial Loading / Connecting State
   if (isLoading && !match) {
     return (
-      <PageContainer maxWidth="md" className="py-12">
+      <PageContainer maxWidth="md" className="py-12 space-y-4">
         <LoadingState
           status="CONNECTING"
-          message="CONNECTING TO AUTHORITATIVE MATCH ENGINE..."
-          subtext="RETRIEVING AUTHORITATIVE GAME STATE"
+          message={
+            slowLoadWarning
+              ? 'WAKING GAME ENGINE (CLOUD SERVICE WAKING UP)...'
+              : 'CONNECTING TO AUTHORITATIVE MATCH ENGINE...'
+          }
+          subtext={
+            slowLoadWarning
+              ? 'Render cloud instances may take 20-40s to warm up. Your match state is safe.'
+              : 'RETRIEVING AUTHORITATIVE GAME STATE'
+          }
         />
+        {slowLoadWarning && (
+          <div className="flex justify-center pt-2">
+            <ArcadeButton variant="secondary" size="sm" onClick={() => refresh()}>
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+              RETRY CONNECTION NOW
+            </ArcadeButton>
+          </div>
+        )}
       </PageContainer>
     );
   }
@@ -148,9 +190,10 @@ export const BluffMatchPage: React.FC = () => {
 
   // Resolve player and opponent views
   const isCreator = match.creator.player_id === playerId;
+  const isSeatOpen = match.status === 'WAITING' && match.opponent === null;
   const myPlayer = isCreator ? match.creator : match.opponent;
   const opponentPlayer = isCreator ? match.opponent : match.creator;
-  const isSpectator = !isCreator && match.opponent?.player_id !== playerId;
+  const isSpectator = !isCreator && match.opponent !== null && match.opponent?.player_id !== playerId;
 
   const isPlayerTurn = match.can_act && match.active_turn_player_id === playerId;
   const isOpponentTurn =
@@ -174,9 +217,9 @@ export const BluffMatchPage: React.FC = () => {
     : creatorRevealed?.secret_value ?? opponentPlayer?.secret_value;
 
   // Automated action for local simulated playtesting bot
-  React.useEffect(() => {
+  useEffect(() => {
     if (!match || match.status !== 'DECISION') return;
-    if (!isOpponentTurn || !opponentPlayer?.player_id.startsWith('0xsimulated')) return;
+    if (!isOpponentTurn || !opponentPlayer?.player_id?.startsWith('0xsimulated')) return;
 
     const timer = setTimeout(async () => {
       try {
@@ -313,35 +356,167 @@ export const BluffMatchPage: React.FC = () => {
         }
       />
 
-      {/* WAITING FOR OPPONENT NOTICE */}
-      {match.status === 'WAITING' && (
-        <Panel header="WAITING FOR OPPONENT" accent="pink">
+      {/* 0. CANCELLED STATE NOTICE */}
+      {match.status === 'CANCELLED' && (
+        <Panel header="DUEL CANCELLED" accent="danger">
           <div className="py-6 text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-arcade-danger/10 border border-arcade-danger/40 text-arcade-danger">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="font-display text-base text-arcade-text tracking-wide uppercase">
+                THIS DUEL WAS CANCELLED
+              </h2>
+              <p className="text-xs font-mono text-arcade-muted mt-1 max-w-sm mx-auto">
+                The match creator cancelled this duel. Any deposited stakes have been refunded.
+              </p>
+            </div>
+            <Link to="/bluff">
+              <ArcadeButton variant="pink" size="md">
+                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                RETURN TO LOBBY
+              </ArcadeButton>
+            </Link>
+          </div>
+        </Panel>
+      )}
+
+      {/* 1. WAITING FOR OPPONENT (OPPONENT JOIN CHALLENGE VIEW) */}
+      {match.status === 'WAITING' && !isCreator && !match.opponent && (
+        <Panel header="ACCEPT DUEL CHALLENGE" accent="pink">
+          <div className="py-6 text-center space-y-5">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-arcade-pink/15 border border-arcade-pink/50 text-arcade-pink animate-pulse motion-reduce:animate-none shadow-arcade-pink">
+              <Swords className="w-7 h-7" />
+            </div>
+
+            <div className="space-y-1">
+              <h2 className="font-display text-lg text-arcade-text tracking-wide uppercase">
+                YOU HAVE BEEN CHALLENGED TO A 1V1 DUEL!
+              </h2>
+              <p className="text-xs font-mono text-arcade-muted max-w-md mx-auto">
+                Creator <span className="text-arcade-pink font-bold">{match.creator.player_id.slice(0, 10)}...</span> has staked{' '}
+                <span className="text-arcade-pink font-bold">{match.stake_amount} MON</span>. Total pot is{' '}
+                <span className="text-arcade-lime font-bold">{match.pot_amount} MON</span>.
+              </p>
+            </div>
+
+            <div className="max-w-md mx-auto p-4 rounded-lg bg-arcade-bg border border-arcade-border space-y-4 text-left">
+              <div className="text-xs font-mono font-bold text-arcade-subtle uppercase flex items-center justify-between">
+                <span>SELECT YOUR SECRET VALUE (1 - 10):</span>
+                <span className="text-arcade-pink font-bold text-sm">#{selectedCommitValue}</span>
+              </div>
+
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setSelectedCommitValue(val)}
+                    className={`h-11 rounded font-display text-base font-bold border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-arcade-pink ${
+                      selectedCommitValue === val
+                        ? 'bg-arcade-pink text-black border-arcade-pink shadow-arcade-pink scale-105'
+                        : 'bg-arcade-panel text-arcade-text border-arcade-border hover:border-arcade-pink/50'
+                    }`}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-[11px] font-mono text-arcade-subtle">
+                Your secret value is cryptographically hashed with local salt. The creator cannot view your card until showdown.
+              </p>
+
+              <ArcadeButton
+                variant="pink"
+                size="lg"
+                className="w-full text-sm font-bold shadow-arcade-pink"
+                isLoading={isSubmitting}
+                onClick={async () => {
+                  try {
+                    await joinDuel(selectedCommitValue);
+                    refresh();
+                  } catch {
+                    // Handled in hook
+                  }
+                }}
+              >
+                <Swords className="w-4 h-4 mr-2" />
+                ACCEPT CHALLENGE & JOIN ({match.stake_amount} MON)
+              </ArcadeButton>
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {/* 2. WAITING FOR OPPONENT (CREATOR LOBBY VIEW) */}
+      {match.status === 'WAITING' && isCreator && (
+        <Panel header="WAITING FOR OPPONENT TO JOIN" accent="pink">
+          <div className="py-6 text-center space-y-5">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-arcade-pink/10 border border-arcade-pink/40 text-arcade-pink animate-pulse motion-reduce:animate-none">
               <Swords className="w-6 h-6" />
             </div>
-            <div>
-              <h2 className="font-display text-base text-arcade-text tracking-wide">
-                DUEL IS OPEN &bull; AWAITING OPPONENT TO JOIN
+            <div className="space-y-1">
+              <h2 className="font-display text-base text-arcade-text tracking-wide uppercase">
+                DUEL IS OPEN &bull; AWAITING OPPONENT
               </h2>
-              <p className="text-xs font-mono text-arcade-muted mt-1 max-w-sm mx-auto">
-                Share this Match ID with an opponent. Re-entering will automatically restore the lobby.
+              <p className="text-xs font-mono text-arcade-muted max-w-sm mx-auto">
+                Share this link with your opponent, or spawn an instant simulated bot to test right away.
               </p>
             </div>
-            <div className="flex items-center justify-center gap-2 max-w-sm mx-auto p-2 rounded bg-arcade-bg border border-arcade-border font-mono text-xs">
-              <span className="text-arcade-subtle truncate flex-1">{match.id}</span>
-              <ArcadeButton variant="secondary" size="sm" onClick={handleCopyId}>
-                {copiedId ? (
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 max-w-md mx-auto p-2 rounded bg-arcade-bg border border-arcade-border font-mono text-xs">
+              <span className="text-arcade-subtle truncate flex-1 px-1">
+                {window.location.href}
+              </span>
+              <ArcadeButton variant="secondary" size="sm" onClick={handleCopyLink}>
+                {copiedLink ? (
                   <>
                     <Check className="w-3.5 h-3.5 mr-1 text-arcade-lime" />
-                    COPIED
+                    COPIED LINK
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5 mr-1" />
-                    COPY ID
+                    COPY LINK
                   </>
                 )}
+              </ArcadeButton>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <ArcadeButton
+                variant="cyan"
+                size="md"
+                isLoading={isSubmitting}
+                onClick={async () => {
+                  try {
+                    await spawnBot();
+                    refresh();
+                  } catch {
+                    // Handled in hook
+                  }
+                }}
+              >
+                <Bot className="w-4 h-4 mr-1.5" />
+                PLAY VS SIMULATED BOT
+              </ArcadeButton>
+
+              <ArcadeButton
+                variant="secondary"
+                size="md"
+                isLoading={isSubmitting}
+                onClick={async () => {
+                  try {
+                    await cancelMatch();
+                    navigate('/bluff');
+                  } catch {
+                    // Handled in hook
+                  }
+                }}
+              >
+                <X className="w-4 h-4 mr-1.5 text-arcade-danger" />
+                CANCEL DUEL
               </ArcadeButton>
             </div>
           </div>
@@ -357,7 +532,17 @@ export const BluffMatchPage: React.FC = () => {
           className="relative overflow-hidden"
         >
           <div className="py-6 flex flex-col items-center justify-center text-center space-y-4">
-            {match.status === 'ACTIVE' && myPlayer && !myPlayer.has_committed ? (
+            {isSeatOpen && !isCreator ? (
+              <div className="space-y-3">
+                <div className="w-28 h-40 rounded-xl bg-arcade-bg border-2 border-dashed border-arcade-pink/50 flex flex-col items-center justify-center p-3 select-none text-arcade-subtle space-y-2 mx-auto">
+                  <Swords className="w-8 h-8 text-arcade-pink animate-pulse motion-reduce:animate-none" />
+                  <span className="text-[10px] font-mono uppercase text-arcade-pink font-bold">JOIN DUEL</span>
+                </div>
+                <p className="text-xs font-mono text-arcade-muted max-w-xs">
+                  Accept the challenge in the panel above to choose your secret card.
+                </p>
+              </div>
+            ) : match.status === 'ACTIVE' && myPlayer && !myPlayer.has_committed ? (
               <div className="w-full space-y-4">
                 <p className="text-xs font-mono text-arcade-subtle">
                   CHOOSE YOUR SECRET VALUE (1 - 10)
@@ -396,8 +581,17 @@ export const BluffMatchPage: React.FC = () => {
                       <EyeOff className="w-3.5 h-3.5 text-arcade-pink" />
                     </div>
 
-                    <div className="font-display text-5xl text-arcade-pink font-bold tracking-tight">
-                      {myPlayer?.secret_value ?? myRevealedValue ?? '—'}
+                    <div className="flex flex-col items-center justify-center space-y-1 my-auto">
+                      {myPlayer?.secret_value ?? myRevealedValue ? (
+                        <div className="font-display text-5xl text-arcade-pink font-bold tracking-tight">
+                          {myPlayer?.secret_value ?? myRevealedValue}
+                        </div>
+                      ) : (
+                        <>
+                          <Lock className="w-8 h-8 text-arcade-pink animate-pulse motion-reduce:animate-none" />
+                          <span className="font-display text-xs text-arcade-pink font-bold tracking-wider">LOCKED</span>
+                        </>
+                      )}
                     </div>
 
                     <div className="text-[9px] font-mono text-arcade-subtle tracking-wider uppercase">
